@@ -1,0 +1,388 @@
+Dashboard / Home Page
+
+Purpose: Overview of system usage.
+
+Components / Features:
+
+Total number of registered students
+
+Last added student
+
+Quick stats: total students by department / section / year / semester
+
+Navigation to:
+
+Add Student
+
+Student Database
+
+Entry Logs
+
+Notes:
+
+Just mock numbers are fine for now
+
+Use cards or badges for clarity
+
+3️⃣ Add Student Page
+
+Purpose: Add student info to the system for app access.
+
+Fields to collect:
+
+Name
+
+Father Name
+
+Section
+
+Department
+
+Phone Number
+
+Email
+
+Roll Number / Student ID
+
+Photo (optional, can be a URL or placeholder)
+
+Behavior:
+
+Form submission → save to AdminService / local storage as mock DB
+
+Optionally check if email or ID already exists (prevent duplicates)
+
+Confirmation message: “Student added successfully”
+
+Notes:
+
+This ensures only registered students can use the Student App
+
+Later, this mock DB will be replaced by API calls
+
+4️⃣ Student Database Page
+
+Purpose: View students grouped by department / section / year / semester.
+
+Features:
+
+Table of students:
+
+Name, Roll No, Department, Section, Email, Phone, Photo
+
+Filter / search by department, section, year, semester
+
+Optional: sort alphabetically or by roll number
+
+Use mock data service for now
+
+Notes:
+
+Makes system look professional
+
+Exam-friendly: examiners see structure
+
+5️⃣ Entry Logs Page
+
+Purpose: Track when students “enter” campus via the Student App.
+
+Columns / Data:
+
+Student ID / Name
+
+Department / Section
+
+Timestamp of entry
+
+Status (e.g., QR Generated, Login Successful)
+
+Behavior:
+
+Logs generated when student logs in and/or generates QR in app
+
+Use mock data for now
+
+Admin can view logs, filter by department, section, date
+
+Notes:
+
+Critical for viva: shows system accountability
+
+Even with fake logs, it looks legit
+
+6️⃣ Services / Mock Data
+
+Purpose: Backend API is not implemented yet, so create services to manage mock DB.
+
+AdminService / StudentService should handle:
+
+Students
+
+addStudent(studentObj) → save to local storage / array
+
+getStudents() → return array of students
+
+getStudentsByDepartment(department) → filtered view
+
+validateStudent(studentObj) → check if student exists for login
+
+Entry Logs
+
+addLog(logObj) → save when student logs in / generates QR
+
+getLogs() → return array of logs
+
+getLogsByFilter(department/section/date) → filtered view
+
+Mock Data Example:
+
+students = [
+  { id: 'S001', name: 'Ali Khan', fatherName: 'Faisal Khan', section: 'A', department: 'CS', year: '2', semester: '4', email: 'ali@uni.edu', phone: '03001234567', photo: 'url' },
+  { id: 'S002', name: 'Sara Ahmed', fatherName: 'Ahmed Ahmed', section: 'B', department: 'EE', year: '3', semester: '6', email: 'sara@uni.edu', phone: '03007654321', photo: 'url' },
+]
+logs = [
+  { id: 'L001', studentId: 'S001', timestamp: '2026-01-20T09:00', status: 'Login Successful' },
+]
+
+
+Services should simulate async behavior with Promises / Observables so later API integration is easy
+
+7️⃣ Integration with Student App
+
+Flow:
+
+Student must be registered in Admin DB
+
+Student enters info in Student App
+
+App validates info with AdminService (mock DB)
+
+If valid → allow login → generate QR
+
+On QR generation → create entry log in AdminService
+
+Notes:
+
+This ensures students cannot use app unless added by admin
+
+Keeps system secure even with mock data
+
+Extra Notes / Viva Talking Points
+
+Role separation: Admin manages data, student app consumes it
+
+Department / section / year / semester classification → shows structure & organization
+
+Mock services → prepare you for real API integration
+
+QR generation still uses student info + datetime
+
+ADMIN PANEL – DYNAMIC STRUCTURE
+1️⃣ Admin Login Page
+
+Same as before
+
+Hardcoded or mock login (role-based optional)
+
+Once logged in → go Dashboard
+
+2️⃣ Dashboard / Home Page
+
+Overview of system
+
+Total number of departments, sections, students
+
+Quick stats / cards (optional)
+
+Links to:
+
+Add Department
+
+Add Section
+
+Add Student
+
+Student Database
+
+Entry Logs
+
+3️⃣ Add Department Page
+
+Purpose: Admin can create new departments dynamically.
+
+Fields:
+
+Department Name
+
+Department Code (optional)
+
+Behavior:
+
+On submission → save to DepartmentService / mock DB
+
+Departments list used later in Add Section and Add Student
+
+Prevent duplicate department names
+
+4️⃣ Add Section Page
+
+Purpose: Admin can create sections dynamically and link them to a department
+
+Fields:
+
+Section Name / Code
+
+Department Selector (dropdown of existing departments)
+
+Behavior:
+
+On submission → save to SectionService / mock DB
+
+Section list now depends on department selection
+
+Prevent duplicates within same department
+
+Notes:
+
+This gives relational structure: Department → Sections → Students
+
+5️⃣ Add Student Page
+
+Purpose: Admin adds students dynamically
+
+Fields:
+
+Name
+
+Father Name
+
+Roll Number / Student ID
+
+Email
+
+Phone
+
+Department Selector (dropdown from DepartmentService)
+
+Section Selector (dropdown filtered by selected Department)
+
+Year / Semester (optional dropdowns)
+
+Photo (optional URL / upload)
+
+Behavior:
+
+On submission → save to StudentService / mock DB
+
+Student object stores:
+
+{
+  id: 'S001',
+  name: 'Ali Khan',
+  fatherName: 'Faisal Khan',
+  department: 'CS',
+  section: 'A',
+  year: '2',
+  semester: '4',
+  email: 'ali@uni.edu',
+  phone: '03001234567',
+  photo: 'url'
+}
+
+
+Later student app validates against this database
+
+UX Tip:
+
+Department → Section cascading dropdown
+
+Only sections in selected department appear
+
+6️⃣ Student Database Page
+
+Purpose: Display all students dynamically
+
+Features:
+
+Filter:
+
+Department (dropdown from DepartmentService)
+
+Section (filtered based on department)
+
+Year / Semester
+
+Table Columns: Name, Roll No, Dept, Section, Email, Phone, Photo
+
+Action buttons: (Optional for now) Edit / Delete
+
+Behavior:
+
+Mock DB service handles adding, updating, deleting
+
+Adding new department or section automatically updates filters
+
+7️⃣ Entry Logs Page
+
+Same as before
+
+Filter logs by Department / Section / Student / Date
+
+Logs automatically link student → department → section
+
+8️⃣ Services / Mock DB
+
+We now need 4 services for dynamic data:
+
+DepartmentService
+
+departments = [{ id: 'CS', name: 'Computer Science' }]
+addDepartment(depObj)
+getDepartments()
+
+
+SectionService
+
+sections = [{ id: 'A', name: 'A', departmentId: 'CS' }]
+addSection(secObj)
+getSectionsByDepartment(depId)
+
+
+StudentService
+
+students = [{ id: 'S001', name: 'Ali', department: 'CS', section: 'A', ... }]
+addStudent(studentObj)
+getStudentsByFilter(dep?, sec?, year?, semester?)
+validateStudent(studentObj)  // check if allowed to login in student app
+
+
+EntryLogService
+
+logs = [{ studentId: 'S001', time: '2026-01-20T09:00', status: 'Login Successful' }]
+addLog(logObj)
+getLogsByFilter(dep?, sec?, studentId?, date?)
+
+
+Notes:
+
+Use local storage / in-memory arrays for now
+
+Simulate async behavior with Promises or Observables
+
+Later, replace with real API calls
+
+9️⃣ Integration with Student App
+
+Student app validates input against dynamic mock DB
+
+Only registered students (with correct dept/section) can login → generate QR → logs created
+
+✅ Key Advantages
+
+Fully relational & scalable
+
+New departments/sections automatically appear in dropdowns
+
+Student database is dynamic and filterable
+
+Easy to integrate with backend later

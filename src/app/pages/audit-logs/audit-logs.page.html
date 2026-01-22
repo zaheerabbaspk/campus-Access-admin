@@ -1,0 +1,97 @@
+<div class="space-y-6">
+    <!-- Page Header & Filters -->
+    <div class="flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Audit Logs</h1>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Track system changes and admin actions</p>
+            </div>
+            <button (click)="clearLogs()"
+                class="text-red-600 hover:text-red-700 font-medium text-sm border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors">
+                Clear Logs
+            </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="flex flex-wrap gap-3">
+            <select [(ngModel)]="filterEntity"
+                class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm">
+                <option value="">All Entities</option>
+                <option value="Department">Departments</option>
+                <option value="Section">Sections</option>
+                <option value="Student">Students</option>
+            </select>
+
+            <select [(ngModel)]="filterAction"
+                class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm">
+                <option value="">All Actions</option>
+                <option value="Create">Create</option>
+                <option value="Update">Update</option>
+                <option value="Delete">Delete</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Logs Table -->
+    <div
+        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-50 dark:bg-gray-700/50">
+                    <tr>
+                        <th
+                            class="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Timestamp
+                        </th>
+                        <th
+                            class="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            User
+                        </th>
+                        <th
+                            class="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Action
+                        </th>
+                        <th
+                            class="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Entity
+                        </th>
+                        <th
+                            class="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Details
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    @for (log of filteredLogs(); track log.id) {
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                            {{ log.timestamp | date:'medium' }}
+                        </td>
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                            {{ log.user }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span
+                                [class]="getActionColor(log.action) + ' px-2.5 py-0.5 rounded-full text-xs font-medium border border-current opacity-90'">
+                                {{ log.action }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                            {{ log.entity }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                            {{ log.details }}
+                        </td>
+                    </tr>
+                    } @empty {
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                            <p>No audit logs found</p>
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

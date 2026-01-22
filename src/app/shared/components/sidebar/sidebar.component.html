@@ -1,0 +1,32 @@
+<aside [class]="isOpen() ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
+    class="fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-transform duration-300 ease-in-out lg:min-h-[calc(100vh-4rem)]">
+
+    <nav class="h-full overflow-y-auto pt-20 lg:pt-4 pb-4 px-3">
+        <div class="space-y-1">
+            @for (item of navItems; track item.route) {
+            <a [routerLink]="item.route"
+                routerLinkActive="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium"
+                [routerLinkActiveOptions]="{exact: false}"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        [attr.d]="getIconPath(item.icon)" />
+                </svg>
+                <span class="text-sm flex-1">{{ item.label }}</span>
+                @if (item.count) {
+                <span
+                    class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 py-0.5 px-2 rounded-full text-xs font-semibold">
+                    {{ item.count() }}
+                </span>
+                }
+            </a>
+            }
+        </div>
+    </nav>
+</aside>
+
+<!-- Overlay for mobile -->
+@if (isOpen()) {
+<div class="fixed inset-0 bg-black/50 z-20 lg:hidden" (click)="onCloseSidebar()">
+</div>
+}
