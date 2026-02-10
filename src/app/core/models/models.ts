@@ -12,6 +12,7 @@ export interface Section {
 
 export interface Student {
     id: string; // Roll Number / Student ID
+    firebaseId?: string; // Firebase database key
     name: string;
     fatherName: string;
     email: string;
@@ -21,6 +22,7 @@ export interface Student {
     year: string;
     semester: string;
     photoUrl?: string;
+    faceDescriptor?: number[];
     registeredAt: Date;
 }
 
@@ -36,8 +38,8 @@ export interface EntryLog {
 
 export interface AuditLog {
     id: string;
-    action: 'Create' | 'Update' | 'Delete';
-    entity: 'Department' | 'Section' | 'Student';
+    action: 'Create' | 'Update' | 'Delete' | 'Security Alert';
+    entity: 'Department' | 'Section' | 'Student' | 'System';
     details: string;
     timestamp: Date;
     user: string;

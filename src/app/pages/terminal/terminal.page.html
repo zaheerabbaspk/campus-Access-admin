@@ -1,0 +1,48 @@
+<div class="terminal-container">
+    <div class="header">
+        <h1>Campus Access Terminal</h1>
+        <p [class.ready]="faceService.isReady()">{{ scanStatus() }}</p>
+    </div>
+
+    <div class="video-wrapper">
+        <video #video autoplay muted playsinline></video>
+        <canvas #canvas class="bounding-box-canvas"></canvas>
+        <div class="overlay" [class.scanning]="isScanning()">
+            <div class="scanner-line"></div>
+        </div>
+
+        <!-- Success Message -->
+        <div class="recognition-overlay" *ngIf="lastRecognizedName()">
+            <div class="message-card">
+                <div class="icon-success">✓</div>
+                <h2>{{ lastRecognizedName() }}</h2>
+                <p>Face Recognized Successfully</p>
+                <span class="timestamp">{{ 'Just now' }}</span>
+            </div>
+        </div>
+
+        <!-- Unknown User Message -->
+        <div class="recognition-overlay error" *ngIf="unknownUser()">
+            <div class="message-card">
+                <div class="icon-error">!</div>
+                <h2>Access Denied</h2>
+                <p>User Identity Not Recognized</p>
+                <span class="timestamp">Please contact administration</span>
+            </div>
+        </div>
+
+        <!-- Emergency Weapon Alert -->
+        <div class="emergency-overlay" *ngIf="weaponAlert()">
+            <div class="emergency-content">
+                <div class="alert-icon">⚠️</div>
+                <h1>EMERGENCY</h1>
+                <h2>WEAPON DETECTED</h2>
+                <p>Security protocols activated. Authorities notified.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Institutional Access Control System</p>
+    </div>
+</div>

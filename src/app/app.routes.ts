@@ -70,6 +70,11 @@ export const routes: Routes = [
     ]
   },
   {
+    path: 'terminal',
+    loadComponent: () => import('./pages/terminal/terminal.page').then(m => m.TerminalPage),
+    canActivate: [authGuard]
+  },
+  {
     path: '**',
     redirectTo: 'dashboard'
   }
