@@ -5,11 +5,12 @@ import { ActivatedRoute } from '@angular/router';
 import { StudentService } from '../../core/services/student.service';
 import { DepartmentService } from '../../core/services/department.service';
 import { SectionService } from '../../core/services/section.service';
+import { FaceRegistrationComponent } from '../../shared/components/face-registration/face-registration.component';
 
 @Component({
     selector: 'app-students',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, FaceRegistrationComponent],
     templateUrl: './students.page.html',
     styleUrls: ['./students.page.scss']
 })
@@ -20,7 +21,9 @@ export class StudentsPage implements OnInit {
     route = inject(ActivatedRoute);
 
     showAddModal = signal(false);
+    showFaceModal = signal(false);
     isEditing = signal(false);
+    selectedStudentForFace = signal<string | null>(null);
 
     // Filters
     searchTerm = signal('');
@@ -55,6 +58,7 @@ export class StudentsPage implements OnInit {
     year = signal('');
     semester = signal('');
     registeredAt = signal<Date | undefined>(undefined);
+    editingFirebaseId = signal<string | undefined>(undefined); // Store Firebase ID when editing
 
     // Computed
     filteredSections = computed(() => {
@@ -93,7 +97,8 @@ export class StudentsPage implements OnInit {
 
     openEditModal(student: any) {
         this.isEditing.set(true);
-        this.studentId.set(student.id);
+        this.studentId.set(student.id); // This is now the roll number
+        this.editingFirebaseId.set(student.firebaseId); // Store Firebase ID
         this.name.set(student.name);
         this.fatherName.set(student.fatherName || '');
         this.email.set(student.email || '');
@@ -110,6 +115,16 @@ export class StudentsPage implements OnInit {
         this.showAddModal.set(false);
     }
 
+    openFaceModal(firebaseId: string) {
+        this.selectedStudentForFace.set(firebaseId);
+        this.showFaceModal.set(true);
+    }
+
+    closeFaceModal() {
+        this.showFaceModal.set(false);
+        this.selectedStudentForFace.set(null);
+    }
+
     resetForm() {
         this.studentId.set('');
         this.name.set('');
@@ -121,6 +136,7 @@ export class StudentsPage implements OnInit {
         this.year.set('');
         this.semester.set('');
         this.registeredAt.set(undefined);
+        this.editingFirebaseId.set(undefined);
     }
 
     saveStudent() {
@@ -140,6 +156,7 @@ export class StudentsPage implements OnInit {
             if (this.isEditing()) {
                 this.studentService.updateStudent({
                     ...studentData,
+                    firebaseId: this.editingFirebaseId()!,
                     registeredAt: this.registeredAt() ?? new Date() // Keep original date or use current if missing
                 });
             } else {
@@ -149,9 +166,9 @@ export class StudentsPage implements OnInit {
         }
     }
 
-    deleteStudent(id: string) {
+    deleteStudent(firebaseId: string) {
         if (confirm('Are you sure you want to delete this student?')) {
-            this.studentService.deleteStudent(id);
+            this.studentService.deleteStudent(firebaseId);
         }
     }
 

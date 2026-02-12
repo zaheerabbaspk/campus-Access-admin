@@ -87,6 +87,10 @@
                             Contact
                         </th>
                         <th
+                            class="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Biometrics
+                        </th>
+                        <th
                             class="px-6 py-4 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Actions
                         </th>
@@ -120,6 +124,26 @@
                             <div class="text-sm text-gray-900 dark:text-white">{{ student.email }}</div>
                             <div class="text-xs text-gray-500 dark:text-gray-400">{{ student.phone }}</div>
                         </td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center">
+                                <span *ngIf="student.faceDescriptor"
+                                    class="px-2 py-1 text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full uppercase tracking-wider">Active
+                                    ID</span>
+                                <span *ngIf="!student.faceDescriptor"
+                                    class="px-2 py-1 text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full uppercase tracking-wider">No
+                                    Data</span>
+                                <button (click)="openFaceModal(student.firebaseId!)"
+                                    class="ml-2 p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                                    title="Scan Face">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
                         <td class="px-6 py-4 text-right">
                             <div class="flex items-center justify-end gap-2">
                                 <button (click)="openEditModal(student)"
@@ -130,7 +154,7 @@
                                             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                 </button>
-                                <button (click)="deleteStudent(student.id)"
+                                <button (click)="deleteStudent(student.firebaseId!)"
                                     class="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                     title="Delete">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -273,6 +297,24 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+}
+
+@if (showFaceModal()) {
+<div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+        <div
+            class="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800/50">
+            <h3 class="font-bold text-gray-800 dark:text-white">Biometric Identity Enrollment</h3>
+            <button (click)="closeFaceModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <app-face-registration [studentId]="selectedStudentForFace()!" (saved)="closeFaceModal()">
+        </app-face-registration>
     </div>
 </div>
 }

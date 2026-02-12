@@ -1,0 +1,78 @@
+[
+    {
+        "id": "dept1",
+        "name": "Computer Science",
+        "code": "CS",
+        "sections": [
+            {
+                "id": "sec1",
+                "name": "BSCS-7A",
+                "students": [
+                    {
+                        "id": "2021-CS-101",
+                        "name": "Ali Khan",
+                        "fatherName": "Imran Khan",
+                        "email": "ali.khan@example.com",
+                        "phone": "0300-1234567",
+                        "year": "4th",
+                        "semester": "7th",
+                        "photoUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Ali",
+                        "registeredAt": "2024-01-23T10:00:00Z"
+                    },
+                    {
+                        "id": "2021-CS-102",
+                        "name": "Sara Ahmed",
+                        "fatherName": "Ahmed Raza",
+                        "email": "sara.ahmed@example.com",
+                        "phone": "0300-7654321",
+                        "year": "4th",
+                        "semester": "7th",
+                        "photoUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sara",
+                        "registeredAt": "2024-01-23T10:15:00Z"
+                    }
+                ]
+            },
+            {
+                "id": "sec2",
+                "name": "BSCS-7B",
+                "students": [
+                    {
+                        "id": "2021-CS-201",
+                        "name": "Usman Sheikh",
+                        "fatherName": "Sheikh Muhammad",
+                        "email": "usman.s@example.com",
+                        "phone": "0321-1122334",
+                        "year": "4th",
+                        "semester": "7th",
+                        "photoUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Usman",
+                        "registeredAt": "2024-01-23T11:00:00Z"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "id": "dept2",
+        "name": "Electrical Engineering",
+        "code": "EE",
+        "sections": [
+            {
+                "id": "sec3",
+                "name": "BSEE-5A",
+                "students": [
+                    {
+                        "id": "2022-EE-101",
+                        "name": "Zainab Bibi",
+                        "fatherName": "Muhammad Bibi",
+                        "email": "zainab@example.com",
+                        "phone": "0333-9988776",
+                        "year": "3rd",
+                        "semester": "5th",
+                        "photoUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Zainab",
+                        "registeredAt": "2024-01-23T12:00:00Z"
+                    }
+                ]
+            }
+        ]
+    }
+]
