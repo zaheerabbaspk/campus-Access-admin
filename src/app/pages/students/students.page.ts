@@ -177,6 +177,7 @@ export class StudentsPage implements OnInit {
     }
 
     getSectionName(id: string): string {
-        return this.sectionService.sections().find(s => s.id === id)?.name || 'Unknown';
+        // Find by key/id first, then fallback to name check if id looks like a name
+        return this.sectionService.sections().find(s => s.id === id || s.name === id)?.name || id || 'Unknown';
     }
 }

@@ -1,11 +1,11 @@
 import { Component, OnInit, ElementRef, ViewChild, inject, signal, OnDestroy } from '@angular/core';
 import jsQR from 'jsqr'; // Import Library
 import { CommonModule } from '@angular/common';
-import { FaceRecognitionService } from '../../core/services/face-recognition.service';
-import { StudentService } from '../../core/services/student.service';
-import { LogService } from '../../core/services/log.service';
-import { WeaponDetectionService } from '../../core/services/weapon-detection.service';
-import { AuditLogService } from '../../core/services/audit-log.service';
+import { FaceRecognitionService } from 'src/app/core/services/face-recognition.service';
+import { StudentService } from 'src/app/core/services/student.service';
+import { LogService } from 'src/app/core/services/log.service';
+import { WeaponDetectionService } from 'src/app/core/services/weapon-detection.service';
+import { AuditLogService } from 'src/app/core/services/audit-log.service';
 
 @Component({
     selector: 'app-terminal',
@@ -90,31 +90,74 @@ export class TerminalPage implements OnInit, OnDestroy {
             const startTime = Date.now();
 
             try {
-                // 0. QR Code Scanning (Fastest)
                 const video = this.videoElement.nativeElement;
-                if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                    const canvas = document.createElement('canvas');
+                const canvas = this.canvasElement.nativeElement;
+                const ctx = canvas.getContext('2d');
+
+                // 0. Prepare Canvas & Sync Dimensions
+                if (video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                    const ctx = canvas.getContext('2d');
-                    if (ctx) {
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    // Note: We don't clear yet here, as QR check might need to draw.
+                    // But we clear at the start of scanPromise if we reach it.
+                } else {
+                    this.isScanning.set(false);
+                    return; // Wait for video to be fully ready with dimensions
+                }
+
+                // 1. QR Code Scanning (Highest Priority)
+                if (ctx) {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = video.videoWidth;
+                    tempCanvas.height = video.videoHeight;
+                    const tempCtx = tempCanvas.getContext('2d');
+
+                    if (tempCtx) {
+                        tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+                        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
                         const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                            inversionAttempts: "dontInvert",
+                            inversionAttempts: "attemptBoth", // Better for phone screens
                         });
 
                         if (code && code.data) {
-                            console.log('QR Code Detected:', code.data);
-                            // Verify if it's a student ID
-                            const student = this.studentService.students().find(s => s.id === code.data);
+                            const rawData = code.data.trim();
+                            let studentId = rawData;
+
+                            // 1a. Attempt to parse JSON (User App format)
+                            try {
+                                const jsonData = JSON.parse(rawData);
+                                if (jsonData.studentId || jsonData.rollNo) {
+                                    studentId = jsonData.studentId || jsonData.rollNo;
+                                    console.log('📦 JSON QR Data Extracted:', studentId);
+                                }
+                            } catch (e) {
+                                // Not JSON, treat as raw ID string
+                            }
+
+                            console.log('📱 QR Detected:', studentId);
+
+                            const student = this.studentService.students().find(s =>
+                                s.id === studentId || s.firebaseId === studentId
+                            );
+
                             if (student) {
+                                // Draw QR Bounding Box (Green)
+                                ctx.strokeStyle = '#22c55e';
+                                ctx.lineWidth = 4;
+                                ctx.beginPath();
+                                ctx.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
+                                ctx.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
+                                ctx.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
+                                ctx.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
+                                ctx.closePath();
+                                ctx.stroke();
+
                                 this.onStudentRecognized(student.id);
                                 this.isScanning.set(false);
-                                return; // Stop other checks if QR matches
+                                return;
                             } else {
-                                // QR found but no matching student (Invalid/Unknown)
-                                console.warn('Unknown QR Code:', code.data);
+                                console.warn('⚠️ Unknown QR ID:', studentId);
+                                this.scanStatus.set(`Unknown identity: "${studentId}"`);
                                 this.onUnknownUser();
                                 this.isScanning.set(false);
                                 return;
@@ -123,48 +166,60 @@ export class TerminalPage implements OnInit, OnDestroy {
                     }
                 }
 
-                // TIMEOUT RACE: If detection takes > 3s, abort this cycle
+                // 2. Clear canvas before weapon/face scans if QR didn't return
+                ctx?.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Combined Scan Cycle
                 const scanPromise = (async () => {
+                    const video = this.videoElement.nativeElement;
+                    const canvas = this.canvasElement.nativeElement;
+                    const ctx = canvas.getContext('2d');
+
+                    let emergencyTriggered = false;
+
                     // 1. Weapon Detection
                     try {
-                        const threats = await this.weaponService.detectThreats(this.videoElement.nativeElement);
+                        console.log('🔍 Starting weapon detection scan...');
+                        const threats = await this.weaponService.detectThreats(video);
+
                         if (threats.length > 0) {
-                            this.drawBoundingBoxes(threats); // Draw what AI sees
-
-                            const actualThreat = threats.find(t => t.score > 0.3); // Alert threshold
-
+                            const actualThreat = threats.find(t => t.score > 0.25); // Increased threshold for production
                             if (actualThreat) {
-                                // WEAPON FOUND: Now try to identify WHO has it
-                                let studentName = 'Unknown Person';
-                                try {
-                                    const descriptor = await this.faceService.getFaceDescriptor(this.videoElement.nativeElement);
-                                    if (descriptor) {
-                                        const studentId = await this.faceService.findBestMatch(descriptor, this.studentService.students());
-                                        const student = this.studentService.students().find(s => s.id === studentId);
-                                        if (student) studentName = student.name;
-                                    }
-                                } catch (err) {
-                                    console.log('Could not identify person during alert');
+                                // Draw only the actual threat boxes
+                                this.drawBoundingBoxes(threats);
+
+                                console.warn('🚨 WEAPON DETECTED:', actualThreat.class);
+
+                                // Identify person during alert
+                                let personName = 'Unknown Person';
+                                const faceRes = await this.faceService.getFaceDetection(video);
+                                if (faceRes) {
+                                    const matchId = await this.faceService.findBestMatch(Array.from(faceRes.descriptor), this.studentService.students());
+                                    const student = this.studentService.students().find(s => s.id === matchId);
+                                    if (student) personName = student.name;
+                                    this.drawFaceBox(faceRes); // Draw face during alert too
                                 }
 
-                                this.triggerEmergency(actualThreat, studentName);
-                                return true;
+                                this.triggerEmergency(actualThreat, personName);
+                                emergencyTriggered = true;
                             }
-                        } else {
-                            // Clear canvas if no threats
-                            const canvas = this.canvasElement.nativeElement;
-                            const ctx = canvas.getContext('2d');
-                            ctx?.clearRect(0, 0, canvas.width, canvas.height);
                         }
                     } catch (wErr) {
-                        console.error('Weapon Scan Failed:', wErr);
+                        console.error('❌ Weapon Scan Failed:', wErr);
                     }
 
-                    // 2. Face Recognition
+                    if (emergencyTriggered) return true;
+
+                    // 2. Face Recognition (Normal Mode)
                     try {
-                        const descriptor = await this.faceService.getFaceDescriptor(this.videoElement.nativeElement);
-                        if (descriptor) {
-                            const studentId = await this.faceService.findBestMatch(descriptor, this.studentService.students());
+                        console.log('🔍 Starting face detection scan...');
+                        const faceResult = await this.faceService.getFaceDetection(video);
+
+                        if (faceResult) {
+                            this.drawFaceBox(faceResult);
+
+                            const studentId = await this.faceService.findBestMatch(Array.from(faceResult.descriptor), this.studentService.students());
+
                             if (studentId) {
                                 this.onStudentRecognized(studentId);
                             } else {
@@ -172,7 +227,7 @@ export class TerminalPage implements OnInit, OnDestroy {
                             }
                         }
                     } catch (fErr) {
-                        console.error('Face Scan Failed:', fErr);
+                        console.error('❌ Face Scan Failed:', fErr);
                     }
                     return false;
                 })();
@@ -182,7 +237,7 @@ export class TerminalPage implements OnInit, OnDestroy {
                     setTimeout(() => reject(new Error('Scan Timeout')), 3000)
                 );
 
-                await Promise.race([scanPromise, timeoutPromise]); 
+                await Promise.race([scanPromise, timeoutPromise]);
 
             } catch (err) {
                 console.error('Scan Cycle Error/Timeout:', err);
@@ -199,9 +254,28 @@ export class TerminalPage implements OnInit, OnDestroy {
         if (student) {
             this.lastRecognizedName.set(student.name);
 
+            // Success Audio Feedback (Gentle blip)
+            try {
+                const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // High A
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.2);
+            } catch (e) {
+                console.warn('Audio feedback failed:', e);
+            }
+
             // Mark attendance in Firebase
             this.logService.addLog({
-                id: '', // Will be generated by Firebase
                 studentId: student.id,
                 studentName: student.name,
                 departmentId: student.departmentId,
@@ -233,11 +307,9 @@ export class TerminalPage implements OnInit, OnDestroy {
 
         // Log to Audit Logs
         this.auditLogService.addLog({
-            id: '',
             action: 'Security Alert',
-            details: `Weapon detected at terminal: ${threat.class.toUpperCase()} by ${studentName} (${Math.round(threat.score * 100)}%)`,
-            timestamp: new Date(),
-            user: 'System-AI'
+            entity: 'System',
+            details: `Weapon detected at terminal: ${threat.class.toUpperCase()} by ${studentName} (${Math.round(threat.score * 100)}%)`
         });
 
         // Simple alert sound (browser beep)
@@ -256,37 +328,68 @@ export class TerminalPage implements OnInit, OnDestroy {
         }, 10000);
     }
 
-    drawBoundingBoxes(predictions: any[]) {
+    drawFaceBox(faceResult: any) {
         const video = this.videoElement.nativeElement;
         const canvas = this.canvasElement.nativeElement;
         const ctx = canvas.getContext('2d');
 
         if (!ctx) return;
 
-        // Match canvas size to video size
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        const { x, y, width, height } = faceResult.detection.box;
 
-        // Clear previous drawings
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Draw Box
+        ctx.strokeStyle = '#3b82f6'; // Blue color for face
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x, y, width, height);
 
-        predictions.forEach(prediction => {
+        // Draw Label Background
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(x, y - 25, 120, 25);
+
+        // Draw Text
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 14px Inter';
+        ctx.fillText(
+            `👤 FACE ${Math.round(faceResult.detection.score * 100)}%`,
+            x + 5,
+            y - 7
+        );
+    }
+
+    drawBoundingBoxes(threats: any[]) {
+        const video = this.videoElement.nativeElement;
+        const canvas = this.canvasElement.nativeElement;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) return;
+
+        threats.forEach(prediction => {
             const [x, y, width, height] = prediction.bbox;
 
             // Draw Box
-            ctx.strokeStyle = '#ef4444'; // Red color
+            ctx.strokeStyle = '#ef4444'; // Bright Red for weapon
             ctx.lineWidth = 4;
+            ctx.setLineDash([]); // Solid line
             ctx.strokeRect(x, y, width, height);
 
-            // Draw Label Background
+            // Draw Label
             ctx.fillStyle = '#ef4444';
             ctx.fillRect(x, y - 30, width, 30);
 
             // Draw Text
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 18px Inter';
+
+            let displayLabel = prediction.class.toUpperCase();
+            // Map proxy classes to 'WEAPON' for the UI
+            if (displayLabel === 'HAIR DRIER' || displayLabel === 'REMOTE') {
+                displayLabel = 'WEAPON';
+            } else {
+                displayLabel = `WEAPON (${displayLabel})`;
+            }
+
             ctx.fillText(
-                `${prediction.class.toUpperCase()} ${Math.round(prediction.score * 100)}%`,
+                `⚠️ ${displayLabel} ${Math.round(prediction.score * 100)}%`,
                 x + 5,
                 y - 8
             );
