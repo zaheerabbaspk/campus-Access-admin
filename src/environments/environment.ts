@@ -4,8 +4,8 @@
 
 export const environment = {
   production: false,
-  apiUrl: 'https://campusaccessbackend-default-rtdb.asia-southeast1.firebasedatabase.app',
-  databaseURL: 'https://campusaccessbackend-default-rtdb.asia-southeast1.firebasedatabase.app'
+  apiUrl: 'http://localhost:3000/api',
+  databaseURL: 'http://localhost:3000/api'
 };
 
 

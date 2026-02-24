@@ -1,0 +1,737 @@
+# **Campus Access and Attendance Management System**
+
+## 1. Project Overview
+
+The Campus Access and Attendance Management System is a multi-module solution designed to automate student attendance and improve campus entry security. The system consists of a centralized backend and two frontend applications: an Admin Panel and a Student Mobile Application. It integrates QR-based attendance, facial recognition, and weapon detection to provide both operational efficiency and enhanced safety.
+
+### Technology Stack
+
+* **Frontend Frameworks:** Ionic, Angular
+* **Styling:** Tailwind CSS
+* **Backend/Database:** Firebase Realtime Database
+* **AI/ML Modules:**
+  * `@vladmandic/face-api` v1.7.15 - Facial recognition and detection
+  * `@tensorflow-models/coco-ssd` v2.2.3 - Object/weapon detection
+  * `@tensorflow/tfjs` v4.22.0 - TensorFlow.js runtime
+  * `jsqr` v1.4.0 - QR code scanning
+
+---
+
+## 2. Objectives
+
+* Automate student attendance recording
+* Reduce manual errors and proxy attendance
+* Digitize department, section, and student records
+* Enable secure, real-time attendance via QR codes
+* Provide alternative attendance via facial recognition
+* Enhance campus security using camera-based weapon detection
+* Maintain centralized entry and attendance logs
+
+---
+
+## 3. System Architecture
+
+The project is divided into three major components:
+
+### 3.1 Backend System (Firebase Realtime Database)
+
+* **Base URL:** `https://campusaccessbackend-default-rtdb.asia-southeast1.firebasedatabase.app/`
+* Stores and manages all core data using NoSQL structure
+* Handles departments, sections, and student records
+* Maintains attendance and entry logs
+* Stores facial recognition reference images (as numerical descriptors)
+* Supports QR validation and scan processing
+* Real-time data synchronization across all clients
+
+### 3.2 Admin Panel (Web Frontend)
+
+* Used by administrators to configure and monitor the system
+* Provides full data management and scanning tools
+* Includes security monitoring features
+* Manages student face registration
+* Monitors weapon detection alerts
+
+### 3.3 Student Mobile Application
+
+* Used by registered students only
+* Generates QR codes for entry
+* Provides secure login and identity linkage
+
+---
+
+## 4. Admin Panel Modules
+
+### 4.1 Department Management
+
+**Module Service:** `DepartmentService`
+
+Admin can create and manage departments with the following features:
+
+* Department name
+* Department short form/code
+* Unique department ID (auto-generated)
+* Firebase key for backend mapping
+
+**Operations:**
+* Create new departments
+* Update department details
+* Delete departments
+* View all departments
+
+### 4.2 Section Management
+
+**Module Service:** `SectionService`
+
+* Sections are created under specific departments
+* Admin selects an existing department before adding a section
+* Ensures hierarchical data organization
+* Dynamic filtering based on department selection
+
+**Operations:**
+* Create sections linked to departments
+* Update section information
+* Delete sections
+* Filter sections by department
+
+### 4.3 Student Registration
+
+**Module Service:** `StudentService`
+
+Admin adds students with the following fields:
+
+* Student name
+* Roll number / student ID
+* Father's name
+* Email address
+* Phone number
+* Department (selected from existing list)
+* Section (filtered based on selected department)
+* Semester and academic year
+* Face descriptor (optional, 128-dimensional array)
+
+**Operations:**
+* Register new students
+* Update student information
+* Register facial biometric data
+* Delete student records
+* Link students to departments and sections
+
+---
+
+## 5. Student Mobile Application
+
+### 5.1 Controlled Registration
+
+* Only students pre-registered in the Admin Panel can create accounts
+* Prevents unauthorized access
+* Backend validates student credentials
+
+### 5.2 Student Login
+
+* Secure authentication required
+* Student identity linked with backend record
+* Session management
+
+### 5.3 QR Code Generation
+
+* Logged-in student can generate a QR code
+* QR code format: JSON containing:
+  ```json
+  {
+    "studentId": "string",
+    "timestamp": "ISO datetime"
+  }
+  ```
+* QR is temporary and session-based for authenticity
+* Can also contain raw student ID as fallback
+
+---
+
+## 6. QR-Based Attendance Workflow
+
+**Module:** Terminal Scanner (using `jsQR` library)
+
+1. Student generates QR code from mobile app
+2. Admin scans QR using Admin Panel camera scanner
+3. System decodes QR using jsQR library
+4. Validates student ID against database
+5. Attendance is recorded with:
+   * Student ID
+   * Student name
+   * Department ID
+   * Section ID
+   * Date and time
+   * Status: "Granted"
+6. Record is automatically stored in entry logs
+7. Visual and audio feedback provided
+
+**QR Detection Features:**
+* Automatic JSON parsing
+* Fallback to raw ID string
+* Visual bounding box on successful scan
+* Real-time validation
+
+---
+
+## 7. Attendance and Entry Logs
+
+**Module Service:** `LogService`
+
+* All attendance scans are stored centrally in Firebase
+* Each log entry includes:
+  * Student full details
+  * Timestamp
+  * Department and section information
+  * Method of attendance (QR or facial recognition)
+  * Entry status (Granted/Denied)
+* Logs are viewable in the Admin Panel for review and audit
+* Automatic reverse-chronological ordering
+
+---
+
+## 8. Facial Recognition Module
+
+**Module:** `FaceRecognitionService` using `@vladmandic/face-api`
+
+### Technical Implementation:
+
+**Pre-trained Models Used:**
+* `tinyFaceDetector` - Fast face detection optimized for real-time processing
+* `faceLandmark68Net` - 68-point facial landmark detection
+* `faceRecognitionNet` - Face descriptor generation (128-dimensional vector)
+
+**Model Storage:** `/assets/models`
+
+### Features:
+
+* Provides an alternative attendance method
+* Student facial data is registered by:
+  * Uploading an image, or
+  * Capturing photo via camera in Admin Panel
+* Live camera input processes:
+  1. Face detection in video frame
+  2. Landmark extraction (68 facial points)
+  3. Descriptor generation (128-dimensional embedding)
+  4. Matching against stored student descriptors
+* Matching threshold: 0.4 (stricter for higher accuracy)
+* If matched, attendance is recorded automatically
+* Useful when QR method is unavailable
+* Stores face descriptors as numerical arrays in student records
+
+**Workflow:**
+1. Admin captures student photo during registration
+2. System extracts 128-dimensional face descriptor
+3. Descriptor stored in Firebase under student record
+4. During attendance: live camera feed analyzed
+5. Real-time face detection and descriptor extraction
+6. Descriptor compared against all registered students
+7. Best match identified if confidence exceeds threshold
+8. Attendance logged automatically
+
+---
+
+## 9. Weapon Detection Module
+
+**Module:** `WeaponDetectionService` using `@tensorflow-models/coco-ssd`
+
+### Technical Implementation:
+
+**Model:** COCO-SSD (Common Objects in Context - Single Shot Detector)
+* Pre-trained on 90 object classes
+* Real-time object detection capability
+* Confidence threshold: 25% (production mode)
+
+### Threat Categories Detected:
+
+* **Direct weapons:**
+  * Knife
+  * Scissors
+  * Baseball bat
+  * Bottle (potential blunt weapon)
+* **Weapon proxies:** (similar shapes detected as threats)
+  * Hair dryer (L-shaped, resembles handgun)
+  * Remote (small handheld object proxy)
+  * Umbrella (potential weapon)
+
+### Features and Operation:
+
+* Camera-based detection integrated into Admin Panel Terminal
+* Scans live video feed every 1 second
+* Highest priority in scan hierarchy (checked before face recognition)
+* On threat detection:
+  1. Red bounding box drawn around detected object
+  2. Confidence percentage displayed
+  3. Emergency alert triggered
+  4. Attempts to identify person via facial recognition
+  5. Logs security event to audit system
+  6. Audio alarm activated (2-second sawtooth wave)
+  7. Alert persists for 10 seconds
+* Can be used at entry points for risk detection
+* Supports campus security monitoring
+
+**Security Alert Log Entry:**
+* Action: "Security Alert"
+* Entity: "System"
+* Details: Weapon type, person name, confidence score
+* Timestamp
+
+---
+
+## 10. Key Features Summary
+
+* ✅ Multi-frontend architecture (Admin + Student)
+* ✅ Centralized Firebase backend data control
+* ✅ Department and section hierarchy management
+* ✅ Controlled student registration
+* ✅ QR-based attendance with jsQR
+* ✅ Facial recognition attendance (face-api.js)
+* ✅ Entry and attendance logs
+* ✅ Camera-based weapon detection (COCO-SSD)
+* ✅ Mobile and web platform support
+* ✅ Real-time data synchronization
+* ✅ Audit logging system
+* ✅ Security monitoring and alerts
+
+---
+
+## 11. Backend API Endpoints (Firebase REST API)
+
+**Base URL:** `https://campusaccessbackend-default-rtdb.asia-southeast1.firebasedatabase.app/`
+
+All endpoints use Firebase REST API with `.json` extension.
+
+### 11.1 Department Endpoints
+
+* **GET** `/departments.json` - Retrieve all departments
+* **POST** `/departments.json` - Create new department
+  ```json
+  {
+    "id": "auto-generated",
+    "name": "Computer Science",
+    "code": "CS"
+  }
+  ```
+* **PATCH** `/departments/{firebaseId}.json` - Update department
+* **DELETE** `/departments/{firebaseId}.json` - Delete department
+
+### 11.2 Section Endpoints
+
+* **GET** `/sections.json` - Retrieve all sections
+* **POST** `/sections.json` - Create new section
+  ```json
+  {
+    "name": "Section A",
+    "departmentId": "dept-firebase-id"
+  }
+  ```
+* **PATCH** `/sections/{firebaseId}.json` - Update section
+* **DELETE** `/sections/{firebaseId}.json` - Delete section
+
+### 11.3 Student Endpoints
+
+* **GET** `/students.json` - Retrieve all students
+* **POST** `/students.json` - Register new student
+  ```json
+  {
+    "id": "roll-number",
+    "name": "Student Name",
+    "fatherName": "Father Name",
+    "email": "email@example.com",
+    "phone": "1234567890",
+    "departmentId": "dept-firebase-id",
+    "sectionId": "section-firebase-id",
+    "semester": "1",
+    "year": "2024",
+    "registeredAt": "2024-01-01T00:00:00.000Z",
+    "faceDescriptor": [/* 128-dimensional array */]
+  }
+  ```
+* **PATCH** `/students/{firebaseId}.json` - Update student
+* **PATCH** `/students/{firebaseId}.json` - Update face descriptor
+  ```json
+  {
+    "faceDescriptor": [/* 128 numbers */]
+  }
+  ```
+* **DELETE** `/students/{firebaseId}.json` - Delete student
+
+### 11.4 Entry/Attendance Log Endpoints
+
+* **GET** `/logs.json` - Retrieve all entry logs
+* **POST** `/logs.json` - Create attendance entry
+  ```json
+  {
+    "studentId": "roll-number",
+    "studentName": "Student Name",
+    "departmentId": "dept-id",
+    "sectionId": "section-id",
+    "timestamp": "2024-01-01T10:30:00.000Z",
+    "status": "Granted"
+  }
+  ```
+
+### 11.5 Audit Log Endpoints
+
+* **GET** `/audit_logs.json` - Retrieve all audit logs
+* **POST** `/audit_logs.json` - Create audit entry
+  ```json
+  {
+    "action": "Create|Update|Delete|Security Alert",
+    "entity": "Department|Section|Student|System",
+    "details": "Description of action",
+    "user": "Admin",
+    "timestamp": "2024-01-01T10:30:00.000Z"
+  }
+  ```
+* **DELETE** `/audit_logs.json` - Clear all audit logs
+
+---
+
+## 12. Complete Backend Flow Documentation
+
+### 12.1 Student Registration Flow
+
+1. **Admin Panel** → Department Management
+   * Admin creates department via `POST /departments.json`
+   * Firebase auto-generates unique key
+   * Department stored with ID, name, and code
+
+2. **Admin Panel** → Section Management
+   * Admin creates section via `POST /sections.json`
+   * Section linked to department via `departmentId`
+   * Firebase stores section with auto-generated key
+
+3. **Admin Panel** → Student Registration
+   * Admin fills student form
+   * Department dropdown populated from `GET /departments.json`
+   * Section dropdown filtered by selected department
+   * Student data submitted via `POST /students.json`
+   * Audit log created: "Added student: {name}"
+   * Student can now access mobile app
+
+### 12.2 Face Registration Flow
+
+1. **Admin Panel** → Student Management
+   * Admin selects student to register face
+   * Camera initialized for photo capture
+   * Face-api models loaded:
+     * `tinyFaceDetector.loadFromUri('/assets/models')`
+     * `faceLandmark68Net.loadFromUri('/assets/models')`
+     * `faceRecognitionNet.loadFromUri('/assets/models')`
+
+2. **Face Capture Process:**
+   * Live video feed from webcam
+   * `detectSingleFace()` called on video frame
+   * `.withFaceLandmarks()` extracts 68 facial points
+   * `.withFaceDescriptor()` generates 128-dimensional embedding
+   * Descriptor validation (ensure face detected)
+
+3. **Storage:**
+   * Descriptor array converted to regular number array
+   * `PATCH /students/{firebaseId}.json` with `faceDescriptor`
+   * Audit log: "Registered face for: {student name}"
+
+### 12.3 QR-Based Attendance Flow
+
+**Student Side (Mobile App):**
+1. Student logs into mobile app
+2. App retrieves student profile from Firebase
+3. QR code generated containing:
+   ```json
+   {
+     "studentId": "CS-2024-001",
+     "timestamp": "2024-02-14T18:00:00.000Z"
+   }
+   ```
+4. QR displayed on screen
+
+**Admin Side (Terminal Scanner):**
+1. Terminal page initializes camera
+2. AI models load in background:
+   * Weapon detection (COCO-SSD)
+   * Face recognition (face-api)
+
+3. **Scan Loop (every 1 second):**
+   * Video frame captured to canvas
+   * jsQR library scans for QR code
+   * If QR detected:
+     * Parse JSON or extract raw ID
+     * Lookup student: `students().find(s => s.id === studentId)`
+     * If found:
+       * Draw green bounding box
+       * Play success audio (880Hz sine wave, 0.2s)
+       * Create entry log via `POST /logs.json`
+       * Display success message with student name
+     * If not found:
+       * Display "Unknown identity" error
+       * Set `unknownUser` flag for 3 seconds
+
+### 12.4 Face Recognition Attendance Flow
+
+**Continuous Scanning (when no QR detected):**
+
+1. **Face Detection:**
+   * Video frame passed to face-api
+   * `detectSingleFace(video, TinyFaceDetectorOptions)`
+   * `.withFaceLandmarks().withFaceDescriptor()`
+   * Returns face location, landmarks, and descriptor
+
+2. **Face Matching:**
+   * Retrieve all students from memory: `studentService.students()`
+   * Filter students with registered faces: `s.faceDescriptor exists`
+   * Create labeled descriptors for all registered students
+   * Initialize `FaceMatcher` with 0.4 threshold (40% max distance)
+   * `findBestMatch()` compares live descriptor against all stored
+   * Returns student ID if match found, "unknown" otherwise
+
+3. **Attendance Logging:**
+   * If match found:
+     * Retrieve student details
+     * Blue bounding box drawn on face
+     * Success audio feedback
+     * `POST /logs.json` with full student details
+     * Success message displayed for 5 seconds
+   * If no match:
+     * "Access Denied" message
+     * `unknownUser` flag set for 3 seconds
+
+### 12.5 Weapon Detection Security Flow
+
+**Priority Scanning (checked before face recognition):**
+
+1. **Weapon Scan:**
+   * Video frame passed to COCO-SSD model
+   * `model.detect(videoElement)` returns all detected objects
+   * Filter for threat classes: knife, scissors, baseball bat, bottle, umbrella, hair drier (gun proxy), remote (weapon proxy)
+
+2. **Threat Validation:**
+   * Check confidence score > 25%
+   * If actual threat detected:
+     * Red bounding box drawn on object
+     * Object class identified (map proxies to "WEAPON")
+
+3. **Emergency Response:**
+   * **Parallel Face Identification:**
+     * Attempt to identify person via face recognition
+     * If face matched: retrieve student name
+     * If no match: "Unknown Person"
+   
+   * **Alert Actions:**
+     * Set `weaponAlert` flag
+     * Display: "EMERGENCY: {WEAPON TYPE} DETECTED! ({Person Name})"
+     * Audio alarm: 2-second sawtooth wave at 440Hz
+     * `POST /audit_logs.json`:
+       ```json
+       {
+         "action": "Security Alert",
+         "entity": "System",
+         "details": "Weapon detected: KNIFE by John Doe (87%)",
+         "user": "Admin",
+         "timestamp": "2024-02-14T18:00:00.000Z"
+       }
+       ```
+     * Alert persists for 10 seconds
+     * Scanning paused during alert
+
+### 12.6 Data Synchronization Flow
+
+**Real-time Updates (Firebase feature):**
+
+1. **Admin Panel Changes:**
+   * Any CRUD operation on departments, sections, or students
+   * Firebase immediately updates database
+   * HttpClient observables refresh local signals
+   * UI automatically updates via Angular signals
+
+2. **Cross-Client Sync:**
+   * Admin Panel creates department
+   * Mobile App queries `/departments.json`
+   * New department immediately available
+   * No manual refresh needed
+
+3. **Audit Trail:**
+   * Every create/update/delete operation logs to audit
+   * Audit logs stored with timestamp and user
+   * Audit page displays reverse-chronological order
+   * Security alerts included in audit system
+
+### 12.7 Authentication & Authorization Flow
+
+**Admin Panel:**
+* Simple password-based authentication (hardcoded: "admin123")
+* `AuthService` manages login state in localStorage
+* Key: "campus_access_auth"
+* Login required for all administrative operations
+
+**Student Mobile App:**
+* Student login validates against registered student records
+* Student must be pre-registered in admin panel
+* Prevents unauthorized account creation
+
+**Firebase Security Rules:**
+* Only authorized clients can read/write specific nodes
+* Database rules control access permissions
+* Application-level logic handles additional validation
+
+---
+
+## 13. System Services Architecture
+
+### Core Services (Angular Injectable)
+
+1. **AuthService**
+   * Manages admin authentication
+   * localStorage-based session management
+
+2. **DepartmentService**
+   * CRUD operations for departments
+   * Signal-based state management
+   * Auto-refresh on changes
+
+3. **SectionService**
+   * Section management linked to departments
+   * Department-filtered operations
+
+4. **StudentService**
+   * Student registration and management
+   * Face descriptor updates
+   * Department/section linkage
+
+5. **LogService**
+   * Entry/attendance log management
+   * Automatic timestamp recording
+
+6. **AuditLogService**
+   * System audit trail
+   * Security event logging
+   * Admin action tracking
+
+7. **FaceRecognitionService**
+   * AI model management (face-api)
+   * Face detection and recognition
+   * Descriptor extraction and matching
+
+8. **WeaponDetectionService**
+   * AI model management (COCO-SSD)
+   * Threat detection and classification
+   * Emergency alert triggering
+
+9. **ThemeService**
+   * UI theme management
+   * Dark/light mode support
+
+---
+
+## 14. Database Layer
+
+### Firebase Realtime Database Structure
+
+```
+campusaccessbackend/
+├── departments/
+│   └── {firebaseId}/
+│       ├── id: string
+│       ├── name: string
+│       └── code: string
+│
+├── sections/
+│   └── {firebaseId}/
+│       ├── name: string
+│       └── departmentId: string
+│
+├── students/
+│   └── {firebaseId}/
+│       ├── id: string (roll number)
+│       ├── name: string
+│       ├── fatherName: string
+│       ├── email: string
+│       ├── phone: string
+│       ├── departmentId: string
+│       ├── sectionId: string
+│       ├── semester: string
+│       ├── year: string
+│       ├── registeredAt: Date
+│       └── faceDescriptor: number[] (128-dimensional)
+│
+├── logs/
+│   └── {firebaseId}/
+│       ├── studentId: string
+│       ├── studentName: string
+│       ├── departmentId: string
+│       ├── sectionId: string
+│       ├── timestamp: Date
+│       └── status: string
+│
+└── audit_logs/
+    └── {firebaseId}/
+        ├── action: string
+        ├── entity: string
+        ├── details: string
+        ├── user: string
+        └── timestamp: Date
+```
+
+### Key Characteristics:
+
+* **NoSQL Structure:** Key-value pairs with nested objects
+* **Real-time Sync:** Automatic updates across all connected clients
+* **Auto-generated Keys:** Firebase creates unique IDs for each record
+* **Fast Operations:** Optimized for read/write performance
+* **Security Rules:** Authentication and authorization at database level
+
+### AI/ML Data Storage:
+
+* **Face Descriptors:** Stored as 128-element number arrays
+* **No Raw Images:** Only mathematical representations stored
+* **Client-Side Processing:** All AI computations happen in browser
+* **No External Servers:** TensorFlow.js runs locally
+* **Privacy-Focused:** Biometric data never transmitted to third parties
+
+---
+
+## 15. Security Features
+
+### Data Protection:
+* Firebase authentication and security rules
+* Local password-based admin authentication
+* No plaintext password storage in student records
+* Facial descriptors stored as numerical arrays (not images)
+
+### System Security:
+* Weapon detection for threat identification
+* Audit logging for all administrative actions
+* Security alerts logged with timestamps and details
+* Real-time monitoring capability
+
+### Access Control:
+* Admin-only access to management functions
+* Student registration required before mobile app access
+* Department/section-based data organization
+* Role-based access separation (Admin vs Student)
+
+---
+
+## 16. Performance Optimizations
+
+### AI/ML Optimizations:
+* `tinyFaceDetector` used for faster processing
+* 1-second scan intervals (balance accuracy/performance)
+* Timeout protection (3-second max per scan)
+* Model lazy loading (load only when needed)
+* Canvas-based processing for efficiency
+
+### Database Optimizations:
+* Signal-based reactive state management
+* HTTP caching for frequently accessed data
+* Reverse-chronological log ordering
+* Efficient Firebase queries with `.json` REST API
+
+### UI/UX Optimizations:
+* Audio feedback for successful scans
+* Visual bounding boxes for detected objects/faces
+* Real-time status updates
+* Auto-dismiss notifications (3-10 seconds)
+
+---
+
+## End of Documentation
